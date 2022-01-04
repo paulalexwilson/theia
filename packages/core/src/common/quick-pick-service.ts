@@ -258,7 +258,7 @@ export interface QuickInputService {
  * @param filter the filter to search for.
  * @returns the list of quick pick items that satisfy the filter.
  */
-export function filterItems(items: QuickPickItem[], filter: string): QuickPickItem[] {
+export function filterItems<T extends QuickPickItem>(items: T[], filter: string): T[] {
     filter = filter.trim().toLowerCase();
 
     if (filter.length === 0) {
@@ -268,7 +268,7 @@ export function filterItems(items: QuickPickItem[], filter: string): QuickPickIt
         return items;
     }
 
-    const filteredItems: QuickPickItem[] = [];
+    const filteredItems: T[] = [];
     for (const item of items) {
         if (
             fuzzy.test(filter, item.label) ||
