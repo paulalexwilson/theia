@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2021 Ericsson and others.
+ * Copyright (C) 2022 TypeFox and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -14,17 +14,10 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import { RequestService } from '@theia/core/lib/common/request';
-import { OVSXClient } from '@theia/ovsx-client';
-import { VSXEnvironment } from './vsx-environment';
+import { ContainerModule } from 'inversify';
+import { RequestService } from '../../common/request';
+import { BackendRequestService } from './backend-request-service';
 
-export const OVSXClientProvider = Symbol('OVSXClientProvider');
-export type OVSXClientProvider = () => Promise<OVSXClient>;
-
-export async function createOVSXClient(vsxEnvironment: VSXEnvironment, requestService: RequestService): Promise<OVSXClient> {
-    const [apiVersion, apiUrl] = await Promise.all([
-        vsxEnvironment.getVscodeApiVersion(),
-        vsxEnvironment.getRegistryApiUri()
-    ]);
-    return new OVSXClient({ apiVersion, apiUrl: apiUrl.toString() }, requestService);
-}
+export default new ContainerModule(bind => {
+    bind(RequestService).to(BackendRequestService).inSingletonScope();
+});

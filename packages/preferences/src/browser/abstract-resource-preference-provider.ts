@@ -198,7 +198,7 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
                         await this.model?.save();
                         success = true;
                     } finally {
-                        this.readPreferences();
+                        await this.readPreferences();
                         await this.fireDidPreferencesChanged(); // Ensure all consumers of the event have received it.
                         this.pendingTransaction.resolve(success);
                     }
@@ -252,27 +252,27 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
 
     protected async readPreferencesFromFile(): Promise<void> {
         const content = await this.fileService.read(this.getUri()).catch(() => ({ value: '' }));
-        this.readPreferencesFromContent(content.value);
+        await this.readPreferencesFromContent(content.value);
     }
 
     /**
      * It HAS to be sync to ensure that `setPreference` returns only when values are updated
      * or any other operation modifying the monaco model content.
      */
-    protected readPreferences(): void {
+    protected async readPreferences(): Promise<void> {
         const model = this.model;
         if (!model || model.dirty) {
             return;
         }
         try {
             const content = model.valid ? model.getText() : '';
-            this.readPreferencesFromContent(content);
+            await this.readPreferencesFromContent(content);
         } catch (e) {
             console.error(`Failed to load preferences from '${this.getUri()}'.`, e);
         }
     }
 
-    protected readPreferencesFromContent(content: string): void {
+    protected async readPreferencesFromContent(content: string): Promise<void> {
         let preferencesInJson;
         try {
             preferencesInJson = this.parse(content);
@@ -280,7 +280,7 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
             preferencesInJson = {};
         }
         const parsedPreferences = this.getParsedContent(preferencesInJson);
-        this.handlePreferenceChanges(parsedPreferences);
+        await this.handlePreferenceChanges(parsedPreferences);
     }
 
     protected parse(content: string): any {
@@ -292,7 +292,7 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
         return jsoncparser.parse(strippedContent);
     }
 
-    protected handlePreferenceChanges(newPrefs: { [key: string]: any }): void {
+    protected async handlePreferenceChanges(newPrefs: { [key: string]: any }): Promise<void> {
         const oldPrefs = Object.assign({}, this.preferences);
         this.preferences = newPrefs;
         const prefNames = new Set([...Object.keys(oldPrefs), ...Object.keys(newPrefs)]);
@@ -318,11 +318,11 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
         }
 
         if (prefChanges.length > 0) {
-            this.emitPreferencesChangedEvent(prefChanges);
+            await this.emitPreferencesChangedEvent(prefChanges);
         }
     }
 
-    protected reset(): void {
+    protected async reset(): Promise<void> {
         const preferences = this.preferences;
         this.preferences = {};
         const changes: PreferenceProviderDataChange[] = [];
@@ -335,7 +335,7 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
             }
         }
         if (changes.length > 0) {
-            this.emitPreferencesChangedEvent(changes);
+            await this.emitPreferencesChangedEvent(changes);
         }
     }
 

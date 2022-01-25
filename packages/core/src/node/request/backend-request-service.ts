@@ -17,51 +17,31 @@
 import 'reflect-metadata';
 import * as http from 'http';
 import * as https from 'https';
+import * as stream from 'stream';
 import { parse as parseUrl } from 'url';
 import { getProxyAgent, ProxyAgent } from './proxy';
 import { CancellationToken } from 'vscode-languageserver-protocol';
 import { createGunzip } from 'zlib';
 import { injectable } from 'inversify';
-
-export interface Headers {
-    [header: string]: string;
-}
+import { RequestService, RequestOptions, RequestContext, Headers, RequestConfiguration } from '../../common/request';
+import { BinaryBufferReadableStream } from '../../common/buffer';
 
 export interface RawRequestFunction {
     (options: http.RequestOptions, callback?: (res: http.IncomingMessage) => void): http.ClientRequest;
 }
 
-export interface RequestOptions {
-    type?: string;
-    url?: string;
-    user?: string;
-    password?: string;
-    headers?: Headers;
-    timeout?: number;
-    data?: string;
-    followRedirects?: number;
-    proxyAuthorization?: string;
+export interface NodeRequestOptions extends RequestOptions {
     agent?: ProxyAgent;
     strictSSL?: boolean;
-    getRawRequest?(options: RequestOptions): RawRequestFunction;
-}
-
-export interface RequestContext {
-    res: {
-        headers: Headers;
-        statusCode?: number;
-    };
-    asStream(): NodeJS.ReadableStream;
-    asText(): string;
-    asJSON<T = {}>(): T;
-}
+    getRawRequest?(options: NodeRequestOptions): RawRequestFunction;
+};
 
 @injectable()
-export class RequestService {
+export class BackendRequestService implements RequestService {
 
-    proxyUrl?: string;
-    strictSSL?: boolean;
-    authorization?: string;
+    protected proxyUrl?: string;
+    protected strictSSL?: boolean;
+    protected authorization?: string;
 
     protected getNodeRequest(options: RequestOptions): RawRequestFunction {
         const endpoint = parseUrl(options.url!);
@@ -69,48 +49,68 @@ export class RequestService {
         return module.request;
     }
 
-    protected processOptions(options: RequestOptions): RequestOptions {
-        const { proxyUrl, strictSSL } = this;
-        const agent = options.agent ? options.agent : getProxyAgent(options.url || '', process.env, { proxyUrl, strictSSL });
+    protected async getProxyUrl(url: string): Promise<string | undefined> {
+        return this.proxyUrl;
+    }
+
+    configure(config: RequestConfiguration): void {
+        if ('proxyUrl' in config) {
+            this.proxyUrl = config.proxyUrl;
+        }
+        if ('strictSSL' in config) {
+            this.strictSSL = config.strictSSL;
+        }
+        if ('proxyAuthorization' in config) {
+            this.authorization = config.proxyAuthorization;
+        }
+    }
+
+    protected async processOptions(options: NodeRequestOptions): Promise<NodeRequestOptions> {
+        const { strictSSL } = this;
+        const agent = options.agent ? options.agent : getProxyAgent(options.url || '', process.env, {
+            proxyUrl: await this.getProxyUrl(options.url),
+            strictSSL
+        });
 
         options.agent = agent;
         options.strictSSL = options.strictSSL ?? strictSSL;
 
-        if (this.authorization) {
+        const authorization = options.proxyAuthorization || this.authorization;
+        if (authorization) {
             options.headers = {
                 ...(options.headers || {}),
-                'Proxy-Authorization': this.authorization
+                'Proxy-Authorization': authorization
             };
         }
 
         return options;
     }
 
-    request(options: RequestOptions, token = CancellationToken.None): Promise<RequestContext> {
-        options = this.processOptions(options);
+    request(options: NodeRequestOptions, token = CancellationToken.None): Promise<RequestContext> {
+        return new Promise(async (resolve, reject) => {
+            options = await this.processOptions(options);
 
-        const endpoint = parseUrl(options.url!);
-        const rawRequest = options.getRawRequest
-            ? options.getRawRequest(options)
-            : this.getNodeRequest(options);
+            const endpoint = parseUrl(options.url);
+            const rawRequest = options.getRawRequest
+                ? options.getRawRequest(options)
+                : this.getNodeRequest(options);
 
-        const opts: https.RequestOptions = {
-            hostname: endpoint.hostname,
-            port: endpoint.port ? parseInt(endpoint.port) : (endpoint.protocol === 'https:' ? 443 : 80),
-            protocol: endpoint.protocol,
-            path: endpoint.path,
-            method: options.type || 'GET',
-            headers: options.headers,
-            agent: options.agent,
-            rejectUnauthorized: !!options.strictSSL
-        };
+            const opts: https.RequestOptions = {
+                hostname: endpoint.hostname,
+                port: endpoint.port ? parseInt(endpoint.port) : (endpoint.protocol === 'https:' ? 443 : 80),
+                protocol: endpoint.protocol,
+                path: endpoint.path,
+                method: options.type || 'GET',
+                headers: options.headers,
+                agent: options.agent,
+                rejectUnauthorized: !!options.strictSSL
+            };
 
-        if (options.user && options.password) {
-            opts.auth = options.user + ':' + options.password;
-        }
+            if (options.user && options.password) {
+                opts.auth = options.user + ':' + options.password;
+            }
 
-        return new Promise((resolve, reject) => {
-            const req = rawRequest(opts, res => {
+            const req = rawRequest(opts, async res => {
                 const followRedirects: number = options.followRedirects ?? 3;
                 if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && followRedirects > 0 && res.headers['location']) {
                     this.request({
@@ -119,30 +119,24 @@ export class RequestService {
                         followRedirects: followRedirects - 1
                     }, token).then(resolve, reject);
                 } else {
-                    let stream: NodeJS.ReadableStream = res;
+                    let responseStream: stream.Readable = res;
 
                     if (res.headers['content-encoding'] === 'gzip') {
-                        stream = res.pipe(createGunzip());
+                        responseStream = res.pipe(createGunzip());
                     }
 
-                    let body = '';
-                    stream.on('data', chunk => {
-                        body += chunk;
-                    });
-                    stream.on('error', err => {
-                        reject(err);
-                    });
-                    stream.on('end', () => {
+                    try {
+                        const buffer = await BinaryBufferReadableStream.toBuffer(responseStream);
                         resolve({
                             res: {
                                 headers: res.headers as Headers,
                                 statusCode: res.statusCode
                             },
-                            asStream: () => stream,
-                            asText: () => body,
-                            asJSON: () => JSON.parse(body)
+                            buffer
                         });
-                    });
+                    } catch (e) {
+                        reject(e);
+                    }
                 }
             });
 
@@ -163,5 +157,9 @@ export class RequestService {
                 reject();
             });
         });
+    }
+
+    async resolveProxy(url: string): Promise<string | undefined> {
+        return undefined;
     }
 }

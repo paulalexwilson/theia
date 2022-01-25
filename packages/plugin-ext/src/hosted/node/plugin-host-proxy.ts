@@ -45,14 +45,13 @@ function createPatchedModules(configProvider: PreferenceRegistryExtImpl, resolve
     const proxySetting = {
         config: 'off' as ProxySupportSetting
     };
-    configProvider.onDidChangeConfiguration(() => {
-        proxySetting.config = configProvider.getConfiguration('http')?.get<ProxySupportSetting>('proxySupport') || 'off';
-    });
     const certSetting = {
         config: false
     };
     configProvider.onDidChangeConfiguration(() => {
-        certSetting.config = !!configProvider.getConfiguration('http')?.get<boolean>('systemCertificates');
+        const httpConfig = configProvider.getConfiguration('http');
+        proxySetting.config = httpConfig?.get<ProxySupportSetting>('proxySupport') || 'off';
+        certSetting.config = !!httpConfig?.get<boolean>('systemCertificates');
     });
 
     return {
@@ -86,7 +85,7 @@ function configureModuleLoading(lookup: PatchedModules): void {
             return original.apply(this, arguments);
         }
 
-        // Create shallow copy of the http(s) module to workaround extensions which apply changes to the modules
+        // Create a shallow copy of the http(s) module to workaround extensions which apply changes to the modules
         // See for more info: https://github.com/microsoft/vscode/issues/93167
         return { ...lookup[request].default };
     };

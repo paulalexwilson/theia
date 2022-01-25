@@ -1754,7 +1754,8 @@ export const PLUGIN_RPC_CONTEXT = {
     LABEL_SERVICE_MAIN: <ProxyIdentifier<LabelServiceMain>>createProxyIdentifier<LabelServiceMain>('LabelServiceMain'),
     TIMELINE_MAIN: <ProxyIdentifier<TimelineMain>>createProxyIdentifier<TimelineMain>('TimelineMain'),
     THEMING_MAIN: <ProxyIdentifier<ThemingMain>>createProxyIdentifier<ThemingMain>('ThemingMain'),
-    COMMENTS_MAIN: <ProxyIdentifier<CommentsMain>>createProxyIdentifier<CommentsMain>('CommentsMain')
+    COMMENTS_MAIN: <ProxyIdentifier<CommentsMain>>createProxyIdentifier<CommentsMain>('CommentsMain'),
+    REQUEST_MAIN: createProxyIdentifier<RequestMain>('RequestMain')
 };
 
 export const MAIN_RPC_CONTEXT = {
@@ -1787,7 +1788,8 @@ export const MAIN_RPC_CONTEXT = {
     LABEL_SERVICE_EXT: createProxyIdentifier<LabelServiceExt>('LabelServiceExt'),
     TIMELINE_EXT: createProxyIdentifier<TimelineExt>('TimeLineExt'),
     THEMING_EXT: createProxyIdentifier<ThemingExt>('ThemingExt'),
-    COMMENTS_EXT: createProxyIdentifier<CommentsExt>('CommentsExt')
+    COMMENTS_EXT: createProxyIdentifier<CommentsExt>('CommentsExt'),
+    REQUEST_EXT: createProxyIdentifier<RequestExt>('RequestExt')
 };
 
 export interface TasksExt {
@@ -1850,4 +1852,12 @@ export interface SecretsMain {
     $getPassword(extensionId: string, key: string): Promise<string | undefined>;
     $setPassword(extensionId: string, key: string, value: string): Promise<void>;
     $deletePassword(extensionId: string, key: string): Promise<void>;
+}
+
+export interface RequestExt {
+    $resolveProxy(url: string): Promise<string | undefined>;
+}
+
+export interface RequestMain {
+    $resolveProxy(url: string): Promise<string | undefined>;
 }

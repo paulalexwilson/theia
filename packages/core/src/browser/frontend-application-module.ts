@@ -119,6 +119,7 @@ import {
 } from './breadcrumbs';
 import { RendererHost } from './widgets';
 import { TooltipService, TooltipServiceImpl } from './tooltip-service';
+import { BackendRequestService, RequestService, REQUEST_SERVICE_PATH } from '../common/request';
 
 export { bindResourceProvider, bindMessageService, bindPreferenceService };
 
@@ -390,4 +391,8 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
         child.bind(Coordinate).toConstantValue(position);
         return child.get(BreadcrumbPopupContainer);
     });
+
+    bind(BackendRequestService).toDynamicValue(ctx =>
+        WebSocketConnectionProvider.createProxy<RequestService>(ctx.container, REQUEST_SERVICE_PATH)
+    ).inSingletonScope();
 });

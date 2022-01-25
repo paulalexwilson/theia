@@ -25,7 +25,7 @@ import {
     VSXSearchParam,
     VSXSearchResult
 } from './ovsx-types';
-import { RequestService } from '@theia/core/lib/node/request/request-service';
+import { RequestContext, RequestService } from '@theia/core/lib/common/request';
 
 export interface OVSXClientOptions {
     apiVersion: string
@@ -38,7 +38,19 @@ export class OVSXClient {
 
     async search(param?: VSXSearchParam): Promise<VSXSearchResult> {
         const searchUri = await this.buildSearchUri(param);
-        return this.fetchJson<VSXSearchResult>(searchUri);
+        try {
+            return await this.fetchJson<VSXSearchResult>(searchUri);
+        } catch (e) {
+            let message: string | undefined;
+            if ('message' in e) {
+                message = e.message;
+            }
+            return {
+                error: message,
+                offset: 0,
+                extensions: []
+            };
+        }
     }
 
     protected async buildSearchUri(param?: VSXSearchParam): Promise<string> {
@@ -96,17 +108,19 @@ export class OVSXClient {
         throw new Error(`Extension with id ${id} not found at ${apiUri}`);
     }
 
-    protected fetchJson<R>(url: string): Promise<R> {
-        return this.request.request({
+    protected async fetchJson<R>(url: string): Promise<R> {
+        const e = await this.request.request({
             url,
             headers: { 'Accept': 'application/json' }
-        }).then(e => e.asJSON<R>());
+        });
+        return RequestContext.asJson<R>(e);
     }
 
-    fetchText(url: string): Promise<string> {
-        return this.request.request({
+    async fetchText(url: string): Promise<string> {
+        const e = await this.request.request({
             url
-        }).then(e => e.asText());
+        });
+        return RequestContext.asText(e);
     }
 
     /**

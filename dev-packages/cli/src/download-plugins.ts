@@ -26,18 +26,15 @@ declare global {
 import { OVSXClient } from '@theia/ovsx-client/lib/ovsx-client';
 import * as chalk from 'chalk';
 import * as decompress from 'decompress';
-import { createWriteStream, promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch, { RequestInit, Response } from 'node-fetch';
 import * as path from 'path';
 import { getProxyForUrl } from 'proxy-from-env';
-import * as stream from 'stream';
 import * as temp from 'temp';
-import { promisify } from 'util';
-import { DEFAULT_SUPPORTED_API_VERSION } from '@theia/application-package/lib/api';
-import { RequestContext, RequestService } from '@theia/core/lib/node/request/request-service';
-
-const pipelineAsPromised = promisify(stream.pipeline);
+import { DEFAULT_SUPPORTED_API_VERSION } from '@theia/core/shared/@theia/application-package/lib/api';
+import { BackendRequestService } from '@theia/core/lib/node/request/backend-request-service';
+import { RequestContext } from '@theia/core/lib/common/request';
 
 temp.track();
 
@@ -73,7 +70,7 @@ export interface DownloadPluginsOptions {
     strictSsl?: boolean;
 }
 
-const requestService = new RequestService();
+const requestService = new BackendRequestService();
 
 export default async function downloadPlugins(options: DownloadPluginsOptions = {}): Promise<void> {
     const {
@@ -86,9 +83,11 @@ export default async function downloadPlugins(options: DownloadPluginsOptions = 
         strictSsl
     } = options;
 
-    requestService.proxyUrl = proxyUrl;
-    requestService.authorization = proxyAuthorization;
-    requestService.strictSSL = strictSsl;
+    requestService.configure({
+        proxyUrl,
+        proxyAuthorization,
+        strictSSL: strictSsl
+    });
 
     // Collect the list of failures to be appended at the end of the script.
     const failures: string[] = [];
@@ -237,13 +236,12 @@ async function downloadPluginAsync(failures: string[], plugin: string, pluginUrl
 
     if ((fileExt === '.vsix' || fileExt === '.theia') && packed === true) {
         // Download .vsix without decompressing.
-        const file = createWriteStream(targetPath);
-        await pipelineAsPromised(response.asStream(), file);
+        await fs.writeFile(targetPath, response.buffer.buffer);
     } else {
         await fs.mkdir(targetPath, { recursive: true });
-        const tempFile = temp.createWriteStream('theia-plugin-download');
-        await pipelineAsPromised(response.asStream(), tempFile);
-        await decompress(tempFile.path, targetPath);
+        const tempFile = temp.path('theia-plugin-download');
+        await fs.writeFile(tempFile, Buffer.from(response.buffer.buffer));
+        await decompress(tempFile, targetPath);
     }
 
     console.warn(chalk.green(`+ ${plugin}${version ? `@${version}` : ''}: downloaded successfully ${attempts > 1 ? `(after ${attempts} attempts)` : ''}`));

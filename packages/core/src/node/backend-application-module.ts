@@ -35,7 +35,8 @@ import { KeytarServiceImpl } from './keytar-server';
 import { ContributionFilterRegistry, ContributionFilterRegistryImpl } from '../common/contribution-filter';
 import { EnvironmentUtils } from './environment-utils';
 import { ProcessUtils } from './process-utils';
-import { RequestService } from './request/request-service';
+import { ProxyCliContribution } from './request/proxy-cli-contribution';
+import { RequestService, REQUEST_SERVICE_PATH } from '../common/request';
 
 decorate(injectable(), ApplicationPackage);
 
@@ -110,5 +111,11 @@ export const backendApplicationModule = new ContainerModule(bind => {
 
     bind(EnvironmentUtils).toSelf().inSingletonScope();
     bind(ProcessUtils).toSelf().inSingletonScope();
-    bind(RequestService).toSelf().inSingletonScope();
+
+    bind(ProxyCliContribution).toSelf().inSingletonScope();
+    bind(CliContribution).toService(ProxyCliContribution);
+
+    bind(ConnectionHandler).toDynamicValue(
+        ctx => new JsonRpcConnectionHandler(REQUEST_SERVICE_PATH, () => ctx.container.get(RequestService))
+    ).inSingletonScope();
 });
