@@ -17,7 +17,7 @@
 import 'reflect-metadata';
 import { injectable } from 'inversify';
 import { BackendRequestService } from '../../node/request/backend-request-service';
-import * as electron from '../../../shared/electron';
+import { webContents } from '../../../shared/electron';
 
 @injectable()
 export class ElectronBackendRequestService extends BackendRequestService {
@@ -39,12 +39,13 @@ export class ElectronBackendRequestService extends BackendRequestService {
     }
 
     async resolveProxy(url: string): Promise<string | undefined> {
-        const webContents = electron.webContents.getAllWebContents();
-        if (webContents.length > 0) {
-            return webContents[0].session.resolveProxy(url);
-        } else {
-            return undefined;
+        if (webContents) {
+            const contents = webContents.getAllWebContents();
+            if (contents.length > 0) {
+                return contents[0].session.resolveProxy(url);
+            }
         }
+        return undefined;
     }
 
     protected buildProxyUrl(url: string, proxyHost: string): string {

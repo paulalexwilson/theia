@@ -29,6 +29,8 @@ export class DefaultBrowserRequestService implements RequestService {
     @inject(PreferenceService)
     protected readonly preferenceService: PreferenceService;
 
+    protected configurePromise: Promise<void> = Promise.resolve();
+
     @postConstruct()
     protected init(): void {
         this.preferenceService.onPreferencesChanged(e => {
@@ -42,12 +44,12 @@ export class DefaultBrowserRequestService implements RequestService {
             if ('http.proxyStrictSSL' in e) {
                 config.strictSSL = e['http.proxyStrictSSL'].newValue;
             }
-            this.configure(config);
+            this.configurePromise = this.configure(config);
         });
     }
 
-    configure(config: RequestConfiguration): void {
-        this.backendRequestService.configure(config);
+    configure(config: RequestConfiguration): Promise<void> {
+        return this.backendRequestService.configure(config);
     }
 
     resolveProxy(url: string): Promise<string | undefined> {
@@ -55,13 +57,17 @@ export class DefaultBrowserRequestService implements RequestService {
     }
 
     protected transformBackendResponse(context: RequestContext): RequestContext {
-        const transferedBuffer = context.buffer.buffer as unknown as { data: number[] };
-        context.buffer = BinaryBuffer.wrap(Uint8Array.from(transferedBuffer.data));
+        // In the `backend-request-facade` we transform the binary buffer into a base64 string to save space
+        // We need to tranform it back into a binary buffer here
+        const transferedBuffer = context.buffer as unknown as string;
+        context.buffer = BinaryBuffer.wrap(Uint8Array.from(atob(transferedBuffer), c => c.charCodeAt(0)));
         return context;
     }
 
     async request(options: RequestOptions): Promise<RequestContext> {
+        // Wait for both the preferences and the configuration of the backend service
         await this.preferenceService.ready;
+        await this.configurePromise;
         const backendResult = await this.backendRequestService.request(options);
         return this.transformBackendResponse(backendResult);
     }
@@ -72,11 +78,11 @@ export class XHRBrowserRequestService extends DefaultBrowserRequestService {
 
     protected authorization?: string;
 
-    configure(config: RequestConfiguration): void {
+    configure(config: RequestConfiguration): Promise<void> {
         if ('proxyAuthorization' in config) {
             this.authorization = config.proxyAuthorization;
         }
-        super.configure(config);
+        return super.configure(config);
     }
 
     async request(options: RequestOptions, token = CancellationToken.None): Promise<RequestContext> {
@@ -153,7 +159,7 @@ export class XHRBrowserRequestService extends DefaultBrowserRequestService {
         for (const line of xhr.getAllResponseHeaders().split(/\r\n|\n|\r/g)) {
             if (line) {
                 const idx = line.indexOf(':');
-                headers[line.substr(0, idx).trim().toLowerCase()] = line.substr(idx + 1).trim();
+                headers[line.substring(0, idx).trim().toLowerCase()] = line.substring(idx + 1).trim();
             }
         }
         return headers;

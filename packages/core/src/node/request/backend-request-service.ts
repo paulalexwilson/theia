@@ -53,7 +53,7 @@ export class BackendRequestService implements RequestService {
         return this.proxyUrl;
     }
 
-    configure(config: RequestConfiguration): void {
+    async configure(config: RequestConfiguration): Promise<void> {
         if ('proxyUrl' in config) {
             this.proxyUrl = config.proxyUrl;
         }

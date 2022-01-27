@@ -85,7 +85,7 @@ export const BackendRequestService = Symbol('BackendRequestService');
 export const REQUEST_SERVICE_PATH = '/services/request-service';
 
 export interface RequestService {
-    configure(config: RequestConfiguration): void;
+    configure(config: RequestConfiguration): Promise<void>;
     request(options: RequestOptions, token?: CancellationToken): Promise<RequestContext>;
     resolveProxy(url: string): Promise<string | undefined>
 }

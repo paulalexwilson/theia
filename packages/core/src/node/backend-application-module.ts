@@ -36,7 +36,8 @@ import { ContributionFilterRegistry, ContributionFilterRegistryImpl } from '../c
 import { EnvironmentUtils } from './environment-utils';
 import { ProcessUtils } from './process-utils';
 import { ProxyCliContribution } from './request/proxy-cli-contribution';
-import { RequestService, REQUEST_SERVICE_PATH } from '../common/request';
+import { REQUEST_SERVICE_PATH } from '../common/request';
+import { BackendRequestFacade } from './request/backend-request-facade';
 
 decorate(injectable(), ApplicationPackage);
 
@@ -115,7 +116,8 @@ export const backendApplicationModule = new ContainerModule(bind => {
     bind(ProxyCliContribution).toSelf().inSingletonScope();
     bind(CliContribution).toService(ProxyCliContribution);
 
+    bind(BackendRequestFacade).toSelf().inSingletonScope();
     bind(ConnectionHandler).toDynamicValue(
-        ctx => new JsonRpcConnectionHandler(REQUEST_SERVICE_PATH, () => ctx.container.get(RequestService))
+        ctx => new JsonRpcConnectionHandler(REQUEST_SERVICE_PATH, () => ctx.container.get(BackendRequestFacade))
     ).inSingletonScope();
 });

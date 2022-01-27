@@ -255,10 +255,6 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
         await this.readPreferencesFromContent(content.value);
     }
 
-    /**
-     * It HAS to be sync to ensure that `setPreference` returns only when values are updated
-     * or any other operation modifying the monaco model content.
-     */
     protected async readPreferences(): Promise<void> {
         const model = this.model;
         if (!model || model.dirty) {
