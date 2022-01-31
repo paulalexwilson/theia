@@ -212,8 +212,8 @@ export class DebugConfigurationManager {
         && one.providerType === other.providerType;
     }
 
-    get recentDynamicOptions(): DebugSessionOptions[] {
-        return [...this.recentDynamicOptionsTracker];
+    get recentDynamicOptions(): readonly DebugSessionOptions[] {
+        return this.recentDynamicOptionsTracker;
     }
 
     protected updateCurrent(options: DebugSessionOptions | undefined = this._currentOptions): void {
