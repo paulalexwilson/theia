@@ -1,4 +1,16 @@
 # Change Log
+## v1.23.0 - 2/?/2022
+<a name="breaking_changes_1.23.0">[Breaking Changes:](#breaking_changes_1.23.0)</a>
+* [debug, plugin-ext] [Debug view] Add dynamic debug configurations [#10212](https://github.com/eclipse-theia/theia/pull/10212)
+  - Changed signature of `DebugConfigurationManager.find` to receive a target DebugConfiguration instead of a configuration's name.
+
+    NOTE: The original signature is still available but no longer used inside the framework and therefore marked as `deprecated`
+  - Multiple methods related to the selection of Debug configuration options were relocated from `debug-configuration-widget.tsx` to the new file `debug-configuration-select.tsx`.
+  - Removed optional interface property `DebugConfiguration.dynamic`.
+  - Added the following methods to the interface `DebugService` i.e. `provideDynamicDebugConfigurations` and `fetchDynamicDebugConfiguration` as well as the property `onDidChangedDebugConfigurationProviders`.
+  - Removed the interface `PluginDebugAdapterContributionRegistrator`
+  - Added the following method to the interface `DebugMain` i.e. `onDidChangedDebugConfigurationProviders`
+
 
 ## v1.23.0 - 2/24/2022
 
