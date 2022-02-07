@@ -83,7 +83,7 @@ export class DebugConfigurationSelect extends React.Component<DebugConfiguration
             const providerType = this.parsePickValue(value);
             this.selectDynamicConfigFromQuickPick(providerType);
         } else {
-            const [name, type, request, workspaceFolderUri, providerType] = InternalDebugSessionOptions.parseValue(value);
+            const { name, type, request, workspaceFolderUri, providerType } = InternalDebugSessionOptions.parseValue(value);
             this.manager.current = this.manager.find(
                 { name, type, request },
                 workspaceFolderUri,
@@ -104,21 +104,16 @@ export class DebugConfigurationSelect extends React.Component<DebugConfiguration
         const configurationsOfProviderType =
             (await this.manager.provideDynamicDebugConfigurations()).find(entry => entry.type === providerType);
 
-        const picks: DynamicPickItem[] = [];
         if (!configurationsOfProviderType) {
-            return picks;
+            return [];
         }
 
-        const { configurations } = configurationsOfProviderType;
-        for (const configuration of configurations) {
-            picks.push({
-                label: configuration.name,
-                configurationType: configuration.type,
-                request: configuration.request,
-                providerType
-            });
-        }
-        return picks;
+        return configurationsOfProviderType.configurations.map(configuration => ({
+            label: configuration.name,
+            configurationType: configuration.type,
+            request: configuration.request,
+            providerType
+        }));
     }
 
     protected async selectDynamicConfigFromQuickPick(providerType: string): Promise<void> {
@@ -172,13 +167,26 @@ export class DebugConfigurationSelect extends React.Component<DebugConfiguration
         // Add recently used dynamic debug configurations
         const { recentDynamicOptions } = this.manager;
         if (recentDynamicOptions.length > 0) {
-            options.push(<option key={'recent-configs-sep'} disabled>{DebugConfigurationSelect.SEPARATOR}</option>);
+            if (options.length > 0) {
+                options.push(<option key={'recent-configs-sep'} disabled>{DebugConfigurationSelect.SEPARATOR}</option>);
+            }
             for (const dynamicOption of recentDynamicOptions) {
                 const value = InternalDebugSessionOptions.toValue(dynamicOption);
                 options.push(<option key={value} value={value}>
                     {this.toName(dynamicOption, this.props.isMultiRoot)} ({dynamicOption.providerType})
                 </option>);
             }
+        }
+
+        // Placing a 'No Configuration' entry enables proper functioning of the 'onChange' event, by
+        // having an entry to switch from (E.g. a case where only one dynamic configuration type is available)
+        if (options.length === 0) {
+            const value = DebugConfigurationSelect.NO_CONFIGURATION;
+            options.push(
+                <option
+                    key={value}
+                    value={value}>{nls.localizeByDefault('No Configurations')}
+                </option>);
         }
 
         // Add dynamic configuration types for quick pick selection
@@ -189,15 +197,6 @@ export class DebugConfigurationSelect extends React.Component<DebugConfiguration
                 const value = this.toPickValue(type);
                 options.push(<option key={value} value={value}>{type}...</option>);
             }
-        }
-
-        if (options.length === 0) {
-            const value = DebugConfigurationSelect.NO_CONFIGURATION;
-            options.push(
-                <option
-                    key={value}
-                    value={value}>{nls.localizeByDefault('No Configurations')}
-                </option>);
         }
 
         options.push(

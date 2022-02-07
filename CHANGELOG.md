@@ -7,9 +7,9 @@
     NOTE: The original signature is still available but no longer used inside the framework and therefore marked as `deprecated`
   - Multiple methods related to the selection of Debug configuration options were relocated from `debug-configuration-widget.tsx` to the new file `debug-configuration-select.tsx`.
   - Removed optional interface property `DebugConfiguration.dynamic`.
-  - Added the following methods to the interface `DebugService` i.e. `provideDynamicDebugConfigurations` and `fetchDynamicDebugConfiguration` as well as the property `onDidChangedDebugConfigurationProviders`.
+  - Added the following methods to the interface `DebugService`: `provideDynamicDebugConfigurations` and `fetchDynamicDebugConfiguration` as well as the property `onDidChangedDebugConfigurationProviders`.
   - Removed the interface `PluginDebugAdapterContributionRegistrator`
-  - Added the following method to the interface `DebugMain` i.e. `onDidChangedDebugConfigurationProviders`
+  - Added the following method to the interface `DebugMain`: `onDidChangedDebugConfigurationProviders`
 
 
 ## v1.23.0 - 2/24/2022

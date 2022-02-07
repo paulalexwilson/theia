@@ -437,7 +437,8 @@ export class DebugConfigurationManager {
         const data = await this.storage.getData<DebugConfigurationManager.Data>('debug.configurations', {});
         this.resolveRecentDynamicOptionsFromData(data.recentDynamicOptions);
 
-        // configuration was not present in a previous format
+        // Between versions 1.22 and 1.23, the expected format of the data changed so that old stored data
+        // may not contain the configuration key.
         if (data.current && 'configuration' in data.current) {
             this.current = this.find(data.current.configuration, data.current.workspaceFolderUri, data.current.providerType);
         }
