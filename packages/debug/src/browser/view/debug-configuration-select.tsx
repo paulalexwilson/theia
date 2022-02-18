@@ -54,11 +54,11 @@ export class DebugConfigurationSelect extends React.Component<DebugConfiguration
         });
     }
 
-    componentDidMount(): void {
+    override componentDidMount(): void {
         this.refreshDebugConfigurations();
     }
 
-    render(): React.ReactNode {
+    override render(): React.ReactNode {
         return <select
             className='theia-select debug-configuration'
             value={this.currentValue}
